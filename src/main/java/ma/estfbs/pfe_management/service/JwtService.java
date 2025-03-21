@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import ma.estfbs.pfe_management.model.Utilisateur;
+
 @Service
 public class JwtService {
 
@@ -28,6 +30,14 @@ public class JwtService {
   public String extractUsername(String token) {
     return extractClaim(token, Claims::getSubject);
   }
+  
+  public Long extractUserId(String token) {
+    return extractClaim(token, claims -> claims.get("userId", Long.class));
+  }
+  
+  public String extractUserRole(String token) {
+    return extractClaim(token, claims -> claims.get("role", String.class));
+  }
 
   public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
     final Claims claims = extractAllClaims(token);
@@ -35,7 +45,13 @@ public class JwtService {
   }
 
   public String generateToken(UserDetails userDetails) {
-    return generateToken(new HashMap<>(), userDetails);
+    Map<String, Object> claims = new HashMap<>();
+    if (userDetails instanceof Utilisateur) {
+      Utilisateur user = (Utilisateur) userDetails;
+      claims.put("userId", user.getId());
+      claims.put("role", user.getRole().name());
+    }
+    return generateToken(claims, userDetails);
   }
 
   public String generateToken(
