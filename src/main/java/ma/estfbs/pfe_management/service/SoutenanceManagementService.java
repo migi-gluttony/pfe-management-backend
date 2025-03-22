@@ -406,4 +406,5 @@ public class SoutenanceManagementService {
                 .map(error -> error.getMessage())
                 .collect(Collectors.joining(", "));
     }
+    
 }
