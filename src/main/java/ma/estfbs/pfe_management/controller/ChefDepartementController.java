@@ -15,6 +15,10 @@ import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteAddRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteDTO;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteEditRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteManagementResponse;
+import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceAddRequest;
+import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceDTO;
+import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceUpdateRequest;
+import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.ValidationResponse;
 import ma.estfbs.pfe_management.dto.SujetDTO;
 import ma.estfbs.pfe_management.dto.SujetManagementResponse;
 import ma.estfbs.pfe_management.dto.SujetRequestDTOs.SujetAddRequest;
@@ -23,6 +27,7 @@ import ma.estfbs.pfe_management.dto.SujetSuggestionDTO;
 import ma.estfbs.pfe_management.model.Utilisateur.Role;
 import ma.estfbs.pfe_management.service.BinomeManagementService;
 import ma.estfbs.pfe_management.service.CompteManagementService;
+import ma.estfbs.pfe_management.service.SoutenanceManagementService;
 import ma.estfbs.pfe_management.service.SujetManagementService;
 import ma.estfbs.pfe_management.service.SujetSuggestionService;
 
@@ -37,6 +42,7 @@ public class ChefDepartementController {
     private final SujetSuggestionService sujetSuggestionService;
     private final BinomeManagementService binomeManagementService;
     private final CompteManagementService compteManagementService;
+    private final SoutenanceManagementService soutenanceManagementService;
     
     // ============= SUJET MANAGEMENT ENDPOINTS =============
     
@@ -177,5 +183,71 @@ public class ChefDepartementController {
     public ResponseEntity<Void> deleteCompte(@PathVariable Long id) {
         compteManagementService.deleteCompte(id);
         return ResponseEntity.ok().build();
+    }
+    
+    // ============= SOUTENANCE MANAGEMENT ENDPOINTS =============
+    
+    /**
+     * Get all soutenances
+     */
+    @GetMapping("/soutenances")
+    public ResponseEntity<List<SoutenanceDTO>> getAllSoutenances() {
+        return ResponseEntity.ok(soutenanceManagementService.getAllSoutenances());
+    }
+    
+    /**
+     * Get soutenance by ID
+     */
+    @GetMapping("/soutenances/{id}")
+    public ResponseEntity<SoutenanceDTO> getSoutenanceById(@PathVariable Long id) {
+        return ResponseEntity.ok(soutenanceManagementService.getSoutenanceById(id));
+    }
+    
+    /**
+     * Schedule a new soutenance
+     */
+    @PostMapping("/soutenances")
+    public ResponseEntity<SoutenanceDTO> scheduleSoutenance(@RequestBody SoutenanceAddRequest request) {
+        return ResponseEntity.ok(soutenanceManagementService.addSoutenance(request));
+    }
+    
+    /**
+     * Update an existing soutenance
+     */
+    @PutMapping("/soutenances/{id}")
+    public ResponseEntity<SoutenanceDTO> updateSoutenance(
+            @PathVariable Long id,
+            @RequestBody SoutenanceUpdateRequest request) {
+        return ResponseEntity.ok(soutenanceManagementService.updateSoutenance(id, request));
+    }
+    
+    /**
+     * Delete a soutenance
+     */
+    @DeleteMapping("/soutenances/{id}")
+    public ResponseEntity<Void> deleteSoutenance(@PathVariable Long id) {
+        soutenanceManagementService.deleteSoutenance(id);
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Validate a soutenance request (dry run)
+     */
+    @PostMapping("/soutenances/validate")
+    public ResponseEntity<ValidationResponse> validateSoutenanceRequest(
+            @RequestBody SoutenanceAddRequest request) {
+        ValidationResponse response = soutenanceManagementService.validateSoutenanceRequest(request, null);
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Validate a soutenance update request (dry run)
+     */
+    @PostMapping("/soutenances/{id}/validate")
+    public ResponseEntity<ValidationResponse> validateSoutenanceUpdateRequest(
+            @PathVariable Long id,
+            @RequestBody SoutenanceUpdateRequest request) {
+        ValidationResponse response = soutenanceManagementService.validateSoutenanceRequest(request, id);
+        return ResponseEntity.ok(response);
     }
 }
