@@ -47,6 +47,9 @@ public class SecurityConfiguration {
                 .requestMatchers("/api/salle/**").authenticated()
                 .requestMatchers("/api/proposer-sujets/**").authenticated()
                 
+                // Chef de Département role-specific endpoints
+                .requestMatchers("/api/chef_de_departement/**").hasRole("CHEF_DE_DEPARTEMENT")
+                
                 // Any other request requires authentication
                 .anyRequest().authenticated()
             )
