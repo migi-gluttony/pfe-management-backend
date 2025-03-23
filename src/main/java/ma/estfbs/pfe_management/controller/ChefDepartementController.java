@@ -15,6 +15,9 @@ import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteAddRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteDTO;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteEditRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteManagementResponse;
+import ma.estfbs.pfe_management.dto.FiliereDTO;
+import ma.estfbs.pfe_management.dto.NoteManagementDTOs.NoteDTO;
+import ma.estfbs.pfe_management.dto.NoteManagementDTOs.NoteManagementResponse;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceAddRequest;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceDTO;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceUpdateRequest;
@@ -27,6 +30,7 @@ import ma.estfbs.pfe_management.dto.SujetSuggestionDTO;
 import ma.estfbs.pfe_management.model.Utilisateur.Role;
 import ma.estfbs.pfe_management.service.BinomeManagementService;
 import ma.estfbs.pfe_management.service.CompteManagementService;
+import ma.estfbs.pfe_management.service.NoteManagementService;
 import ma.estfbs.pfe_management.service.SoutenanceManagementService;
 import ma.estfbs.pfe_management.service.SujetManagementService;
 import ma.estfbs.pfe_management.service.SujetSuggestionService;
@@ -43,6 +47,7 @@ public class ChefDepartementController {
     private final BinomeManagementService binomeManagementService;
     private final CompteManagementService compteManagementService;
     private final SoutenanceManagementService soutenanceManagementService;
+    private final NoteManagementService noteManagementService;
     
     // ============= SUJET MANAGEMENT ENDPOINTS =============
     
@@ -250,4 +255,30 @@ public class ChefDepartementController {
         ValidationResponse response = soutenanceManagementService.validateSoutenanceRequest(request, id);
         return ResponseEntity.ok(response);
     }
+    
+    // ============= NOTE MANAGEMENT ENDPOINTS =============
+    
+    /**
+ * Get all filieres
+ */
+@GetMapping("/filieres")
+public ResponseEntity<List<FiliereDTO>> getAllFilieres() {
+    return ResponseEntity.ok(noteManagementService.getAllFilieres());
+}
+
+/**
+ * Get all student notes with filieres and pourcentages
+ */
+@GetMapping("/notes")
+public ResponseEntity<NoteManagementResponse> getAllNotes() {
+    return ResponseEntity.ok(noteManagementService.getAllNotesWithFilieres());
+}
+
+/**
+ * Get notes filtered by filiere
+ */
+@GetMapping("/notes/filiere/{filiereId}")
+public ResponseEntity<List<NoteDTO>> getNotesByFiliere(@PathVariable Long filiereId) {
+    return ResponseEntity.ok(noteManagementService.getNotesByFiliere(filiereId));
+}
 }

@@ -16,6 +16,7 @@ import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.BinomeDTO;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.EncadrantDTO;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.JuryDTO;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SalleDTO;
+import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SalleManagementResponse;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceAddRequest;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceDTO;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceUpdateRequest;
@@ -55,6 +56,76 @@ public class SoutenanceManagementService {
                 .map(this::mapToSoutenanceDTO)
                 .collect(Collectors.toList());
     }
+    
+    /**
+     * Get all salles
+     */
+    public List<SalleDTO> getAllSalles() {
+        return salleRepository.findAll().stream()
+                .map(this::mapToSalleDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get all salles with response wrapper
+     */
+    public SalleManagementResponse getSalleManagementData() {
+        List<SalleDTO> salles = getAllSalles();
+        return SalleManagementResponse.builder()
+                .salles(salles)
+                .build();
+    }
+    
+    /**
+     * Add a new salle
+     */
+    @Transactional
+    public SalleDTO addSalle(String nom) {
+        if (nom == null || nom.trim().isEmpty()) {
+            throw new RuntimeException("Le nom de la salle est obligatoire");
+        }
+        
+        Salle salle = Salle.builder()
+                .nom(nom.trim())
+                .build();
+        
+        salle = salleRepository.save(salle);
+        return mapToSalleDTO(salle);
+    }
+    
+    /**
+     * Edit a salle
+     */
+    @Transactional
+    public SalleDTO editSalle(Long id, String nom) {
+        Salle salle = salleRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Salle non trouvée avec l'id: " + id));
+        
+        if (nom == null || nom.trim().isEmpty()) {
+            throw new RuntimeException("Le nom de la salle est obligatoire");
+        }
+        
+        salle.setNom(nom.trim());
+        salle = salleRepository.save(salle);
+        return mapToSalleDTO(salle);
+    }
+    
+/**
+ * Delete a salle
+ */
+@Transactional
+public void deleteSalle(Long id) {
+    Salle salle = salleRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Salle non trouvée avec l'id: " + id));
+    
+    // Check if any soutenance is using this salle
+    List<Soutenance> soutenancesUsingSalle = soutenanceRepository.findBySalle(salle);
+    if (!soutenancesUsingSalle.isEmpty()) {
+        throw new RuntimeException("Impossible de supprimer cette salle car elle est utilisée par une ou plusieurs soutenances");
+    }
+    
+    salleRepository.delete(salle);
+}
     
     /**
      * Get soutenance by ID

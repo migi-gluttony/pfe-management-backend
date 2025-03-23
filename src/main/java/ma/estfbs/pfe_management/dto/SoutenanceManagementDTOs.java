@@ -129,4 +129,12 @@ public class SoutenanceManagementDTOs {
         private String field;
         private String message;
     }
+    
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class SalleManagementResponse {
+        private List<SalleDTO> salles;
+    }
 }
