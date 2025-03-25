@@ -16,11 +16,18 @@ public interface DemandeBinomeRepository extends JpaRepository<DemandeBinome, Lo
     List<DemandeBinome> findByStatut(Statut statut);
     
     // Find requests between two specific students
-    Optional<DemandeBinome> findByDemandeurAndDemande(Utilisateur demandeur, Utilisateur demande);
-    
+// Find requests sent by a specific student with a specific status
+List<DemandeBinome> findByDemandeurAndStatut(Utilisateur demandeur, Statut statut);    
     // Find pending requests for a specific student
     List<DemandeBinome> findByDemandeAndStatut(Utilisateur demande, Statut statut);
     
     // Check if there is already a request between two students
     boolean existsByDemandeurAndDemande(Utilisateur demandeur, Utilisateur demande);
+
+/**
+ * Find a specific request between two students
+ */
+Optional<DemandeBinome> findByDemandeurAndDemande(Utilisateur demandeur, Utilisateur demande);
+
+    
 }

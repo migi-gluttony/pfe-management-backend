@@ -16,6 +16,9 @@ import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteDTO;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteEditRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteManagementResponse;
 import ma.estfbs.pfe_management.dto.FiliereDTO;
+import ma.estfbs.pfe_management.dto.HODDashboardDTOs.ActivityDTO;
+import ma.estfbs.pfe_management.dto.HODDashboardDTOs.DashboardStatsDTO;
+import ma.estfbs.pfe_management.dto.HODDashboardDTOs.UpcomingSoutenanceDTO;
 import ma.estfbs.pfe_management.dto.NoteManagementDTOs.NoteDTO;
 import ma.estfbs.pfe_management.dto.NoteManagementDTOs.NoteManagementResponse;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SoutenanceAddRequest;
@@ -30,6 +33,7 @@ import ma.estfbs.pfe_management.dto.SujetSuggestionDTO;
 import ma.estfbs.pfe_management.model.Utilisateur.Role;
 import ma.estfbs.pfe_management.service.BinomeManagementService;
 import ma.estfbs.pfe_management.service.CompteManagementService;
+import ma.estfbs.pfe_management.service.HODDashboardService;
 import ma.estfbs.pfe_management.service.NoteManagementService;
 import ma.estfbs.pfe_management.service.SoutenanceManagementService;
 import ma.estfbs.pfe_management.service.SujetManagementService;
@@ -48,6 +52,7 @@ public class ChefDepartementController {
     private final CompteManagementService compteManagementService;
     private final SoutenanceManagementService soutenanceManagementService;
     private final NoteManagementService noteManagementService;
+    private final HODDashboardService hodDashboardService;
     
     // ============= SUJET MANAGEMENT ENDPOINTS =============
     
@@ -259,26 +264,52 @@ public class ChefDepartementController {
     // ============= NOTE MANAGEMENT ENDPOINTS =============
     
     /**
- * Get all filieres
- */
-@GetMapping("/filieres")
-public ResponseEntity<List<FiliereDTO>> getAllFilieres() {
-    return ResponseEntity.ok(noteManagementService.getAllFilieres());
-}
+     * Get all filieres
+     */
+    @GetMapping("/filieres")
+    public ResponseEntity<List<FiliereDTO>> getAllFilieres() {
+        return ResponseEntity.ok(noteManagementService.getAllFilieres());
+    }
 
-/**
- * Get all student notes with filieres and pourcentages
- */
-@GetMapping("/notes")
-public ResponseEntity<NoteManagementResponse> getAllNotes() {
-    return ResponseEntity.ok(noteManagementService.getAllNotesWithFilieres());
-}
+    /**
+     * Get all student notes with filieres and pourcentages
+     */
+    @GetMapping("/notes")
+    public ResponseEntity<NoteManagementResponse> getAllNotes() {
+        return ResponseEntity.ok(noteManagementService.getAllNotesWithFilieres());
+    }
 
-/**
- * Get notes filtered by filiere
- */
-@GetMapping("/notes/filiere/{filiereId}")
-public ResponseEntity<List<NoteDTO>> getNotesByFiliere(@PathVariable Long filiereId) {
-    return ResponseEntity.ok(noteManagementService.getNotesByFiliere(filiereId));
-}
+    /**
+     * Get notes filtered by filiere
+     */
+    @GetMapping("/notes/filiere/{filiereId}")
+    public ResponseEntity<List<NoteDTO>> getNotesByFiliere(@PathVariable Long filiereId) {
+        return ResponseEntity.ok(noteManagementService.getNotesByFiliere(filiereId));
+    }
+
+    // ============= DASHBOARD ENDPOINTS =============
+
+    /**
+     * Get dashboard statistics
+     */
+    @GetMapping("/dashboard/stats")
+    public ResponseEntity<DashboardStatsDTO> getDashboardStats() {
+        return ResponseEntity.ok(hodDashboardService.getDashboardStats());
+    }
+
+    /**
+     * Get upcoming soutenances for the dashboard
+     */
+    @GetMapping("/dashboard/upcoming-soutenances")
+    public ResponseEntity<List<UpcomingSoutenanceDTO>> getUpcomingSoutenances() {
+        return ResponseEntity.ok(hodDashboardService.getUpcomingSoutenances());
+    }
+
+    /**
+     * Get recent activities for the dashboard
+     */
+    @GetMapping("/dashboard/activities")
+    public ResponseEntity<List<ActivityDTO>> getRecentActivities() {
+        return ResponseEntity.ok(hodDashboardService.getRecentActivities());
+    }
 }

@@ -5,6 +5,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -14,6 +16,8 @@ import java.util.function.Function;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import ma.estfbs.pfe_management.model.Utilisateur;
 
@@ -121,4 +125,23 @@ public class JwtService {
     byte[] keyBytes = Decoders.BASE64.decode(secretKey);
     return Keys.hmacShaKeyFor(keyBytes);
   }
+  /**
+ * Get JWT token from HTTP request
+ * @return the token or null if not found
+ */
+public String getTokenFromRequest() {
+  try {
+      // Access the current request through RequestContextHolder
+      HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+      
+      final String authHeader = request.getHeader("Authorization");
+      if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+          return null;
+      }
+      
+      return authHeader.substring(7);
+  } catch (Exception e) {
+      return null;
+  }
+}
 }

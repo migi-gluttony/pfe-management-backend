@@ -27,6 +27,8 @@ public class CompteManagementDTOs {
         private String filiereName; // Only for students
     }
     
+
+
     @Data
     @Builder
     @AllArgsConstructor
