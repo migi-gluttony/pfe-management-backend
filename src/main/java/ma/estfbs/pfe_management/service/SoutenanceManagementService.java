@@ -24,6 +24,7 @@ import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.StudentDTO;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.SujetShortDTO;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.ValidationError;
 import ma.estfbs.pfe_management.dto.SoutenanceManagementDTOs.ValidationResponse;
+import ma.estfbs.pfe_management.model.AnneeScolaire;
 import ma.estfbs.pfe_management.model.Binome;
 import ma.estfbs.pfe_management.model.Etudiant;
 import ma.estfbs.pfe_management.model.Salle;
@@ -45,14 +46,17 @@ public class SoutenanceManagementService {
     private final SalleRepository salleRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final EtudiantRepository etudiantRepository;
+    private final AcademicYearService academicYearService;
     
     private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
     /**
-     * Get all soutenances
+     * Get all soutenances for current academic year
      */
     public List<SoutenanceDTO> getAllSoutenances() {
-        return soutenanceRepository.findAll().stream()
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        
+        return soutenanceRepository.findByAnneeScolaire(currentYear).stream()
                 .map(this::mapToSoutenanceDTO)
                 .collect(Collectors.toList());
     }
@@ -85,6 +89,10 @@ public class SoutenanceManagementService {
             throw new RuntimeException("Le nom de la salle est obligatoire");
         }
         
+        if (salleRepository.existsByNom(nom.trim())) {
+            throw new RuntimeException("Une salle avec ce nom existe déjà");
+        }
+        
         Salle salle = Salle.builder()
                 .nom(nom.trim())
                 .build();
@@ -105,27 +113,34 @@ public class SoutenanceManagementService {
             throw new RuntimeException("Le nom de la salle est obligatoire");
         }
         
+        // Check if the new name already exists and belongs to a different salle
+        if (!salle.getNom().equals(nom.trim()) && salleRepository.existsByNom(nom.trim())) {
+            throw new RuntimeException("Une salle avec ce nom existe déjà");
+        }
+        
         salle.setNom(nom.trim());
         salle = salleRepository.save(salle);
         return mapToSalleDTO(salle);
     }
     
-/**
- * Delete a salle
- */
-@Transactional
-public void deleteSalle(Long id) {
-    Salle salle = salleRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Salle non trouvée avec l'id: " + id));
-    
-    // Check if any soutenance is using this salle
-    List<Soutenance> soutenancesUsingSalle = soutenanceRepository.findBySalle(salle);
-    if (!soutenancesUsingSalle.isEmpty()) {
-        throw new RuntimeException("Impossible de supprimer cette salle car elle est utilisée par une ou plusieurs soutenances");
+    /**
+     * Delete a salle
+     */
+    @Transactional
+    public void deleteSalle(Long id) {
+        Salle salle = salleRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Salle non trouvée avec l'id: " + id));
+        
+        // Check if any soutenance is using this salle in the current year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        List<Soutenance> soutenancesUsingSalle = soutenanceRepository.findBySalleAndAnneeScolaire(salle, currentYear);
+        
+        if (!soutenancesUsingSalle.isEmpty()) {
+            throw new RuntimeException("Impossible de supprimer cette salle car elle est utilisée par une ou plusieurs soutenances pour l'année courante");
+        }
+        
+        salleRepository.delete(salle);
     }
-    
-    salleRepository.delete(salle);
-}
     
     /**
      * Get soutenance by ID
@@ -134,11 +149,17 @@ public void deleteSalle(Long id) {
         Soutenance soutenance = soutenanceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Soutenance non trouvée avec l'id: " + id));
         
+        // Check if soutenance is from current year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        if (!soutenance.getAnneeScolaire().getId().equals(currentYear.getId())) {
+            throw new RuntimeException("Cette soutenance n'appartient pas à l'année scolaire courante");
+        }
+        
         return mapToSoutenanceDTO(soutenance);
     }
     
     /**
-     * Add a new soutenance
+     * Add a new soutenance for the current academic year
      */
     @Transactional
     public SoutenanceDTO addSoutenance(SoutenanceAddRequest request) {
@@ -161,6 +182,9 @@ public void deleteSalle(Long id) {
         Utilisateur jury2 = utilisateurRepository.findById(request.getJury2Id())
                 .orElseThrow(() -> new RuntimeException("Jury 2 non trouvé avec l'id: " + request.getJury2Id()));
         
+        // Get current academic year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        
         // Parse time
         LocalTime heure = LocalTime.parse(request.getHeure(), timeFormatter);
         
@@ -172,6 +196,7 @@ public void deleteSalle(Long id) {
                 .binome(binome)
                 .jury1(jury1)
                 .jury2(jury2)
+                .anneeScolaire(currentYear)
                 .build();
         
         soutenance = soutenanceRepository.save(soutenance);
@@ -186,6 +211,12 @@ public void deleteSalle(Long id) {
     public SoutenanceDTO updateSoutenance(Long id, SoutenanceUpdateRequest request) {
         Soutenance soutenance = soutenanceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Soutenance non trouvée avec l'id: " + id));
+        
+        // Check if soutenance is from current year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        if (!soutenance.getAnneeScolaire().getId().equals(currentYear.getId())) {
+            throw new RuntimeException("Impossible de modifier une soutenance d'une année précédente");
+        }
         
         // Validate the request
         ValidationResponse validation = validateSoutenanceRequest(request, id);
@@ -209,7 +240,7 @@ public void deleteSalle(Long id) {
         // Parse time
         LocalTime heure = LocalTime.parse(request.getHeure(), timeFormatter);
         
-        // Update soutenance
+        // Update soutenance (keep the same academic year)
         soutenance.setDate(request.getDate());
         soutenance.setHeure(heure);
         soutenance.setSalle(salle);
@@ -227,8 +258,13 @@ public void deleteSalle(Long id) {
      */
     @Transactional
     public void deleteSoutenance(Long id) {
-        if (!soutenanceRepository.existsById(id)) {
-            throw new RuntimeException("Soutenance non trouvée avec l'id: " + id);
+        Soutenance soutenance = soutenanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Soutenance non trouvée avec l'id: " + id));
+                
+        // Check if soutenance is from current year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        if (!soutenance.getAnneeScolaire().getId().equals(currentYear.getId())) {
+            throw new RuntimeException("Impossible de supprimer une soutenance d'une année précédente");
         }
         
         soutenanceRepository.deleteById(id);
@@ -265,6 +301,9 @@ public void deleteSalle(Long id) {
             throw new IllegalArgumentException("Request object must be either SoutenanceAddRequest or SoutenanceUpdateRequest");
         }
         
+        // Get current academic year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        
         // Validate required fields
         if (date == null) {
             errors.add(new ValidationError("date", "La date est obligatoire"));
@@ -291,6 +330,12 @@ public void deleteSalle(Long id) {
         
         if (binomeId == null) {
             errors.add(new ValidationError("binomeId", "Le binôme est obligatoire"));
+        } else {
+            // Check if binome is from current year
+            Binome binome = binomeRepository.findById(binomeId).orElse(null);
+            if (binome != null && !binome.getAnneeScolaire().getId().equals(currentYear.getId())) {
+                errors.add(new ValidationError("binomeId", "Ce binôme n'appartient pas à l'année scolaire courante"));
+            }
         }
         
         if (jury1Id == null) {
@@ -314,10 +359,10 @@ public void deleteSalle(Long id) {
                     .build();
         }
         
-        // Check for scheduling conflicts
+        // Check for scheduling conflicts within current year
         if (date != null && heure != null) {
-            // Get all soutenances on the same date and time
-            List<Soutenance> existingSoutenances = soutenanceRepository.findByDateAndHeure(date, heure);
+            // Get all soutenances on the same date and time for current year
+            List<Soutenance> existingSoutenances = soutenanceRepository.findByDateAndHeureAndAnneeScolaire(date, heure, currentYear);
             
             // Filter out the current soutenance if we're updating
             if (soutenanceId != null) {
@@ -358,12 +403,12 @@ public void deleteSalle(Long id) {
                 }
             }
             
-            // Check for binome conflict (a binome can only have one soutenance)
+            // Check for binome conflict (a binome can only have one soutenance in current year)
             if (binomeId != null && soutenanceId == null) { // Only for new soutenances
-                Optional<Soutenance> existingSoutenance = soutenanceRepository.findByBinomeId(binomeId);
+                Optional<Soutenance> existingSoutenance = soutenanceRepository.findByBinomeIdAndAnneeScolaireId(binomeId, currentYear.getId());
                 if (existingSoutenance.isPresent()) {
                     errors.add(new ValidationError("binomeId", 
-                            "Ce binôme a déjà une soutenance programmée"));
+                            "Ce binôme a déjà une soutenance programmée pour l'année courante"));
                 }
             }
         }
@@ -474,8 +519,7 @@ public void deleteSalle(Long id) {
         }
         
         return errors.stream()
-                .map(error -> error.getMessage())
+                .map(ValidationError::getMessage)
                 .collect(Collectors.joining(", "));
     }
-    
 }

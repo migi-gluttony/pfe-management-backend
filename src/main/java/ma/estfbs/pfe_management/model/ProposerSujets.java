@@ -1,10 +1,12 @@
 package ma.estfbs.pfe_management.model;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "ProposerSujets")
+@Table(name = "proposer_sujets")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -31,6 +33,13 @@ public class ProposerSujets {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status = Status.EN_ATTENTE;
+    
+    @Column(name = "date_proposition", nullable = false)
+    private LocalDateTime dateProposition = LocalDateTime.now();
+    
+    @ManyToOne
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
     
     // Enum for the status
     public enum Status {

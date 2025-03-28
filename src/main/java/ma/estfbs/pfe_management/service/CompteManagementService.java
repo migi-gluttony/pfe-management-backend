@@ -19,6 +19,7 @@ import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteEditRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteManagementResponse;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.ImportItemResult;
 import ma.estfbs.pfe_management.dto.FiliereDTO;
+import ma.estfbs.pfe_management.model.AnneeScolaire;
 import ma.estfbs.pfe_management.model.Etudiant;
 import ma.estfbs.pfe_management.model.Filiere;
 import ma.estfbs.pfe_management.model.Utilisateur;
@@ -35,30 +36,49 @@ public class CompteManagementService {
     private final EtudiantRepository etudiantRepository;
     private final FiliereRepository filiereRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AcademicYearService academicYearService;
     
     // Characters used for random password generation
     private static final String CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     /**
-     * Get accounts by role
+     * Get accounts by role for the current academic year
      */
     public CompteManagementResponse getComptesByRole(Role role) {
         List<CompteDTO> comptes;
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
         
-        if (role != null) {
+        if (role == Role.ETUDIANT) {
+            // For students, only return those from the current year
+            List<Etudiant> currentYearStudents = etudiantRepository.findByAnneeScolaire(currentYear);
+            comptes = currentYearStudents.stream()
+                    .map(etudiant -> mapToCompteDTO(etudiant.getUtilisateur(), etudiant))
+                    .collect(Collectors.toList());
+        } else if (role != null) {
+            // For other roles (ENCADRANT, JURY), return all regardless of year
             comptes = utilisateurRepository.findAll().stream()
                     .filter(user -> user.getRole() == role)
-                    .map(this::mapToCompteDTO)
+                    .map(user -> mapToCompteDTO(user, null))
                     .collect(Collectors.toList());
         } else {
-            comptes = utilisateurRepository.findAll().stream()
-                    .filter(user -> 
-                        user.getRole() == Role.ETUDIANT || 
-                        user.getRole() == Role.ENCADRANT || 
-                        user.getRole() == Role.JURY)
-                    .map(this::mapToCompteDTO)
+            // If no role specified, return all users but filter students by current year
+            List<Utilisateur> nonStudents = utilisateurRepository.findAll().stream()
+                    .filter(user -> user.getRole() == Role.ENCADRANT || user.getRole() == Role.JURY)
                     .collect(Collectors.toList());
+            
+            List<CompteDTO> nonStudentDTOs = nonStudents.stream()
+                    .map(user -> mapToCompteDTO(user, null))
+                    .collect(Collectors.toList());
+            
+            List<Etudiant> currentYearStudents = etudiantRepository.findByAnneeScolaire(currentYear);
+            List<CompteDTO> studentDTOs = currentYearStudents.stream()
+                    .map(etudiant -> mapToCompteDTO(etudiant.getUtilisateur(), etudiant))
+                    .collect(Collectors.toList());
+            
+            comptes = new ArrayList<>();
+            comptes.addAll(nonStudentDTOs);
+            comptes.addAll(studentDTOs);
         }
         
         List<FiliereDTO> filieres = filiereRepository.findAll().stream()
@@ -72,7 +92,7 @@ public class CompteManagementService {
     }
     
     /**
-     * Add a new account
+     * Add a new account - if student, associate with current year
      */
     @Transactional
     public CompteDTO addCompte(CompteAddRequest request) {
@@ -98,14 +118,18 @@ public class CompteManagementService {
         
         utilisateur = utilisateurRepository.save(utilisateur);
         
-        // If the role is ETUDIANT, create an Etudiant entity
+        // If the role is ETUDIANT, create an Etudiant entity with current year
+        Etudiant etudiant = null;
         if (request.getRole() == Role.ETUDIANT) {
             Filiere filiere = filiereRepository.findById(request.getFiliereId())
                     .orElseThrow(() -> new RuntimeException("Filière non trouvée avec l'id: " + request.getFiliereId()));
             
-            Etudiant etudiant = Etudiant.builder()
+            AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+            
+            etudiant = Etudiant.builder()
                     .utilisateur(utilisateur)
                     .filiere(filiere)
+                    .anneeScolaire(currentYear)
                     .build();
             
             etudiantRepository.save(etudiant);
@@ -116,7 +140,7 @@ public class CompteManagementService {
         System.out.println("Generated email: " + email);
         System.out.println("Generated password: " + password);
         
-        return mapToCompteDTO(utilisateur);
+        return mapToCompteDTO(utilisateur, etudiant);
     }
     
     /**
@@ -126,6 +150,17 @@ public class CompteManagementService {
     public CompteDTO editCompte(Long id, CompteEditRequest request) {
         Utilisateur utilisateur = utilisateurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'id: " + id));
+        
+        // For students, verify that they are from current year
+        if (utilisateur.getRole() == Role.ETUDIANT) {
+            Etudiant etudiant = etudiantRepository.findByUtilisateur(utilisateur)
+                    .orElseThrow(() -> new RuntimeException("Étudiant non trouvé pour l'utilisateur: " + id));
+            
+            AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+            if (!etudiant.getAnneeScolaire().getId().equals(currentYear.getId())) {
+                throw new RuntimeException("Impossible de modifier un étudiant d'une année précédente");
+            }
+        }
         
         // Validate CNI uniqueness if changed
         if (request.getCni() != null && !request.getCni().equals(utilisateur.getCni()) && 
@@ -158,18 +193,19 @@ public class CompteManagementService {
         utilisateur = utilisateurRepository.save(utilisateur);
         
         // If the role is ETUDIANT and filiereId is provided, update the Etudiant entity
+        Etudiant etudiant = null;
         if (utilisateur.getRole() == Role.ETUDIANT && request.getFiliereId() != null) {
-            Etudiant etudiant = etudiantRepository.findByUtilisateur(utilisateur)
+            etudiant = etudiantRepository.findByUtilisateur(utilisateur)
                     .orElseThrow(() -> new RuntimeException("Étudiant non trouvé pour l'utilisateur: " + id));
             
             Filiere filiere = filiereRepository.findById(request.getFiliereId())
                     .orElseThrow(() -> new RuntimeException("Filière non trouvée avec l'id: " + request.getFiliereId()));
             
             etudiant.setFiliere(filiere);
-            etudiantRepository.save(etudiant);
+            etudiant = etudiantRepository.save(etudiant);
         }
         
-        return mapToCompteDTO(utilisateur);
+        return mapToCompteDTO(utilisateur, etudiant);
     }
     
     /**
@@ -180,15 +216,104 @@ public class CompteManagementService {
         Utilisateur utilisateur = utilisateurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'id: " + id));
         
-        // If the role is ETUDIANT, we need to delete the Etudiant entity first
+        // If the role is ETUDIANT, we need to verify it's from current year and delete the Etudiant entity first
         if (utilisateur.getRole() == Role.ETUDIANT) {
             Etudiant etudiant = etudiantRepository.findByUtilisateur(utilisateur)
                     .orElseThrow(() -> new RuntimeException("Étudiant non trouvé pour l'utilisateur: " + id));
+            
+            // Verify student is from current year
+            AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+            if (!etudiant.getAnneeScolaire().getId().equals(currentYear.getId())) {
+                throw new RuntimeException("Impossible de supprimer un étudiant d'une année précédente");
+            }
             
             etudiantRepository.delete(etudiant);
         }
         
         utilisateurRepository.deleteById(id);
+    }
+    
+    /**
+     * Import multiple accounts in batch
+     * For students, automatically assign the current academic year
+     */
+    @Transactional
+    public BatchImportResponse importComptes(BatchImportRequest request) {
+        List<ImportItemResult> results = new ArrayList<>();
+        int successCount = 0;
+        int failedCount = 0;
+        
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        
+        // Process each account request in the batch
+        for (CompteAddRequest compteRequest : request.getComptes()) {
+            try {
+                // Validate request
+                validateCompteRequest(compteRequest);
+                
+                // Generate email and password
+                String email = generateEmail(compteRequest.getPrenom(), compteRequest.getNom());
+                String password = generateRandomPassword(10);
+                
+                // Create user entity
+                Utilisateur utilisateur = Utilisateur.builder()
+                        .nom(compteRequest.getNom())
+                        .prenom(compteRequest.getPrenom())
+                        .email(email)
+                        .cni(compteRequest.getRole() != Role.ETUDIANT ? compteRequest.getCni() : null)
+                        .cne(compteRequest.getRole() == Role.ETUDIANT ? compteRequest.getCne() : null)
+                        .dateNaissance(compteRequest.getDateNaissance())
+                        .motDePasse(passwordEncoder.encode(password))
+                        .role(compteRequest.getRole())
+                        .build();
+                
+                utilisateur = utilisateurRepository.save(utilisateur);
+                
+                // If the role is ETUDIANT, create an Etudiant entity with current year
+                if (compteRequest.getRole() == Role.ETUDIANT) {
+                    Filiere filiere = filiereRepository.findById(compteRequest.getFiliereId())
+                            .orElseThrow(() -> new RuntimeException("Filière non trouvée avec l'id: " + compteRequest.getFiliereId()));
+                    
+                    Etudiant etudiant = Etudiant.builder()
+                            .utilisateur(utilisateur)
+                            .filiere(filiere)
+                            .anneeScolaire(currentYear) // Use current year
+                            .build();
+                    
+                    etudiantRepository.save(etudiant);
+                }
+                
+                // Log generated credentials (in production, would send via email)
+                System.out.println("Generated email for [" + compteRequest.getPrenom() + " " + compteRequest.getNom() + "]: " + email);
+                System.out.println("Generated password: " + password);
+                
+                // Add success result
+                results.add(ImportItemResult.builder()
+                        .success(true)
+                        .message("Compte créé avec succès. Email: " + email)
+                        .data(compteRequest)
+                        .build());
+                
+                successCount++;
+            } catch (Exception e) {
+                // Add failure result
+                results.add(ImportItemResult.builder()
+                        .success(false)
+                        .message("Erreur: " + e.getMessage())
+                        .data(compteRequest)
+                        .build());
+                
+                failedCount++;
+            }
+        }
+        
+        // Build and return response
+        return BatchImportResponse.builder()
+                .results(results)
+                .totalCount(request.getComptes().size())
+                .successCount(successCount)
+                .failedCount(failedCount)
+                .build();
     }
     
     /**
@@ -276,13 +401,15 @@ public class CompteManagementService {
     /**
      * Map Utilisateur entity to CompteDTO
      */
-    private CompteDTO mapToCompteDTO(Utilisateur utilisateur) {
+    private CompteDTO mapToCompteDTO(Utilisateur utilisateur, Etudiant etudiant) {
         String filiereName = null;
         
         // If the role is ETUDIANT, get the filiere name
         if (utilisateur.getRole() == Role.ETUDIANT) {
-            Etudiant etudiant = etudiantRepository.findByUtilisateur(utilisateur)
-                    .orElse(null);
+            if (etudiant == null) {
+                etudiant = etudiantRepository.findByUtilisateur(utilisateur)
+                        .orElse(null);
+            }
             
             if (etudiant != null && etudiant.getFiliere() != null) {
                 filiereName = etudiant.getFiliere().getNom();
@@ -311,83 +438,4 @@ public class CompteManagementService {
                 .nom(filiere.getNom())
                 .build();
     }
-
-    /**
- * Import multiple accounts in batch
- */
-@Transactional
-public BatchImportResponse importComptes(BatchImportRequest request) {
-    List<ImportItemResult> results = new ArrayList<>();
-    int successCount = 0;
-    int failedCount = 0;
-    
-    // Process each account request in the batch
-    for (CompteAddRequest compteRequest : request.getComptes()) {
-        try {
-            // Validate request
-            validateCompteRequest(compteRequest);
-            
-            // Generate email and password
-            String email = generateEmail(compteRequest.getPrenom(), compteRequest.getNom());
-            String password = generateRandomPassword(10);
-            
-            // Create user entity
-            Utilisateur utilisateur = Utilisateur.builder()
-                    .nom(compteRequest.getNom())
-                    .prenom(compteRequest.getPrenom())
-                    .email(email)
-                    .cni(compteRequest.getRole() != Role.ETUDIANT ? compteRequest.getCni() : null)
-                    .cne(compteRequest.getRole() == Role.ETUDIANT ? compteRequest.getCne() : null)
-                    .dateNaissance(compteRequest.getDateNaissance())
-                    .motDePasse(passwordEncoder.encode(password))
-                    .role(compteRequest.getRole())
-                    .build();
-            
-            utilisateur = utilisateurRepository.save(utilisateur);
-            
-            // If the role is ETUDIANT, create an Etudiant entity
-            if (compteRequest.getRole() == Role.ETUDIANT) {
-                Filiere filiere = filiereRepository.findById(compteRequest.getFiliereId())
-                        .orElseThrow(() -> new RuntimeException("Filière non trouvée avec l'id: " + compteRequest.getFiliereId()));
-                
-                Etudiant etudiant = Etudiant.builder()
-                        .utilisateur(utilisateur)
-                        .filiere(filiere)
-                        .build();
-                
-                etudiantRepository.save(etudiant);
-            }
-            
-            // Log generated credentials (in production, would send via email)
-            System.out.println("Generated email for [" + compteRequest.getPrenom() + " " + compteRequest.getNom() + "]: " + email);
-            System.out.println("Generated password: " + password);
-            
-            // Add success result
-            results.add(ImportItemResult.builder()
-                    .success(true)
-                    .message("Compte créé avec succès. Email: " + email)
-                    .data(compteRequest)
-                    .build());
-            
-            successCount++;
-        } catch (Exception e) {
-            // Add failure result
-            results.add(ImportItemResult.builder()
-                    .success(false)
-                    .message("Erreur: " + e.getMessage())
-                    .data(compteRequest)
-                    .build());
-            
-            failedCount++;
-        }
-    }
-    
-    // Build and return response
-    return BatchImportResponse.builder()
-            .results(results)
-            .totalCount(request.getComptes().size())
-            .successCount(successCount)
-            .failedCount(failedCount)
-            .build();
-}
 }

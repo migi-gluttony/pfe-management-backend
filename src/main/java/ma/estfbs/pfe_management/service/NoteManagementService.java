@@ -12,6 +12,7 @@ import ma.estfbs.pfe_management.dto.NoteManagementDTOs.EtudiantDTO;
 import ma.estfbs.pfe_management.dto.NoteManagementDTOs.NoteDTO;
 import ma.estfbs.pfe_management.dto.NoteManagementDTOs.NoteManagementResponse;
 import ma.estfbs.pfe_management.dto.NoteManagementDTOs.PourcentageDTO;
+import ma.estfbs.pfe_management.model.AnneeScolaire;
 import ma.estfbs.pfe_management.model.Binome;
 import ma.estfbs.pfe_management.model.Etudiant;
 import ma.estfbs.pfe_management.model.Filiere;
@@ -39,40 +40,53 @@ public class NoteManagementService {
     private final EtudiantRepository etudiantRepository;
     private final FiliereRepository filiereRepository;
     private final PourcentageRepository pourcentageRepository;
+    private final AcademicYearService academicYearService;
 
     /**
-     * Get all student notes with filières and percentages
+     * Get all student notes with filières and percentages for the current academic year
      */
     public NoteManagementResponse getAllNotesWithFilieres() {
         List<NoteDTO> notes = new ArrayList<>();
+        
+        // Get current academic year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
         
         // Get all filières
         List<FiliereDTO> filieres = filiereRepository.findAll().stream()
                 .map(this::mapToFiliereDTO)
                 .collect(Collectors.toList());
         
-        // Get the latest grade percentages configuration
+        // Get the grade percentages configuration for current year
         Pourcentage pourcentage = pourcentageRepository.findTopByOrderByIdDesc();
         PourcentageDTO pourcentageDTO = mapToPourcentageDTO(pourcentage);
         
-        // Get all students
-        List<Etudiant> allStudents = etudiantRepository.findAll();
+        // Get all students for current year
+        List<Etudiant> allStudents = etudiantRepository.findByAnneeScolaire(currentYear);
         
         for (Etudiant etudiant : allStudents) {
             Utilisateur utilisateur = etudiant.getUtilisateur();
             
-            // Find the student's binôme (as etudiant1 or etudiant2)
-            List<Binome> binomes = binomeRepository.findByEtudiant1OrEtudiant2(utilisateur, utilisateur);
+            // Find the student's binôme (as etudiant1 or etudiant2) for current year
+            List<Binome> binomes = binomeRepository.findByEtudiant1OrEtudiant2(utilisateur, utilisateur)
+                    .stream()
+                    .filter(binome -> binome.getAnneeScolaire().getId().equals(currentYear.getId()))
+                    .collect(Collectors.toList());
+            
             if (binomes.isEmpty()) {
-                continue; // Skip students without a binôme
+                continue; // Skip students without a binôme for current year
             }
             
             Binome binome = binomes.get(0); // Get the first binôme if multiple
             
-            // Get rapport note
+            // Get rapport note for current year
             Integer noteRapport = null;
-            Rapport rapport = rapportRepository.findTopByBinomeOrderByIdDesc(binome);
-            if (rapport != null) {
+            List<Rapport> rapports = rapportRepository.findByBinome(binome)
+                    .stream()
+                    .filter(rapport -> rapport.getAnneeScolaire().getId().equals(currentYear.getId()))
+                    .collect(Collectors.toList());
+            
+            if (!rapports.isEmpty()) {
+                Rapport rapport = rapports.get(0);
                 noteRapport = rapport.getNote();
             }
             
@@ -116,30 +130,43 @@ public class NoteManagementService {
     }
     
     /**
-     * Get notes filtered by filière
+     * Get notes filtered by filière for the current academic year
      */
     public List<NoteDTO> getNotesByFiliere(Long filiereId) {
         Filiere filiere = filiereRepository.findById(filiereId)
                 .orElseThrow(() -> new RuntimeException("Filière not found with id: " + filiereId));
         
-        List<Etudiant> filiereStudents = etudiantRepository.findByFiliere(filiere);
+        // Get current academic year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        
+        // Get students in this filière for current year
+        List<Etudiant> filiereStudents = etudiantRepository.findByFiliereAndAnneeScolaire(filiere, currentYear);
         List<NoteDTO> notes = new ArrayList<>();
         
         for (Etudiant etudiant : filiereStudents) {
             Utilisateur utilisateur = etudiant.getUtilisateur();
             
-            // Get the student's binôme
-            List<Binome> binomes = binomeRepository.findByEtudiant1OrEtudiant2(utilisateur, utilisateur);
+            // Get the student's binôme for current year
+            List<Binome> binomes = binomeRepository.findByEtudiant1OrEtudiant2(utilisateur, utilisateur)
+                    .stream()
+                    .filter(binome -> binome.getAnneeScolaire().getId().equals(currentYear.getId()))
+                    .collect(Collectors.toList());
+                    
             if (binomes.isEmpty()) {
-                continue; // Skip students without a binôme
+                continue; // Skip students without a binôme for current year
             }
             
             Binome binome = binomes.get(0);
             
-            // Get rapport note
+            // Get rapport note for current year
             Integer noteRapport = null;
-            Rapport rapport = rapportRepository.findTopByBinomeOrderByIdDesc(binome);
-            if (rapport != null) {
+            List<Rapport> rapports = rapportRepository.findByBinome(binome)
+                    .stream()
+                    .filter(rapport -> rapport.getAnneeScolaire().getId().equals(currentYear.getId()))
+                    .collect(Collectors.toList());
+                    
+            if (!rapports.isEmpty()) {
+                Rapport rapport = rapports.get(0);
                 noteRapport = rapport.getNote();
             }
             

@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import ma.estfbs.pfe_management.dto.SujetSuggestionDTO;
+import ma.estfbs.pfe_management.model.AnneeScolaire;
 import ma.estfbs.pfe_management.model.Binome;
 import ma.estfbs.pfe_management.model.Etudiant;
 import ma.estfbs.pfe_management.model.Filiere;
@@ -28,22 +29,32 @@ public class SujetSuggestionService {
     private final SujetRepository sujetRepository;
     private final BinomeRepository binomeRepository;
     private final EtudiantRepository etudiantRepository;
+    private final AcademicYearService academicYearService;
 
     /**
-     * Get all sujet suggestions
+     * Get all sujet suggestions for the current academic year
      */
     public List<SujetSuggestionDTO> getAllSuggestions() {
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        
         return proposerSujetsRepository.findAll().stream()
+                .filter(suggestion -> suggestion.getAnneeScolaire().getId().equals(currentYear.getId()))
                 .map(this::mapToSujetSuggestionDTO)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Accept a sujet suggestion and create a new sujet
+     * Accept a sujet suggestion and create a new sujet for the current year
      */
     @Transactional
     public void acceptSuggestion(Long id) {
         ProposerSujets suggestion = findSuggestionById(id);
+        
+        // Check if suggestion is from current year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        if (!suggestion.getAnneeScolaire().getId().equals(currentYear.getId())) {
+            throw new RuntimeException("Impossible d'accepter une suggestion d'une année précédente");
+        }
         
         // Update suggestion status
         suggestion.setStatus(Status.ACCEPTER);
@@ -64,6 +75,7 @@ public class SujetSuggestionService {
                 .theme(suggestion.getTheme())
                 .description(suggestion.getDescription())
                 .filiere(filiere)
+                .anneeScolaire(currentYear)
                 .build();
         
         sujet = sujetRepository.save(sujet);
@@ -74,11 +86,17 @@ public class SujetSuggestionService {
     }
 
     /**
-     * Reject a sujet suggestion
+     * Reject a sujet suggestion for the current year
      */
     @Transactional
     public void rejectSuggestion(Long id) {
         ProposerSujets suggestion = findSuggestionById(id);
+        
+        // Check if suggestion is from current year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        if (!suggestion.getAnneeScolaire().getId().equals(currentYear.getId())) {
+            throw new RuntimeException("Impossible de rejeter une suggestion d'une année précédente");
+        }
         
         // Update suggestion status
         suggestion.setStatus(Status.REFUSER);
@@ -86,11 +104,19 @@ public class SujetSuggestionService {
     }
 
     /**
-     * Find suggestion by ID
+     * Find suggestion by ID and verify it's from current year
      */
     private ProposerSujets findSuggestionById(Long id) {
-        return proposerSujetsRepository.findById(id)
+        ProposerSujets suggestion = proposerSujetsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Suggestion de sujet non trouvée avec l'id: " + id));
+        
+        // Check if suggestion is from current year
+        AnneeScolaire currentYear = academicYearService.getCurrentAcademicYear();
+        if (!suggestion.getAnneeScolaire().getId().equals(currentYear.getId())) {
+            throw new RuntimeException("Cette suggestion n'appartient pas à l'année scolaire courante");
+        }
+        
+        return suggestion;
     }
 
     /**
@@ -107,11 +133,11 @@ public class SujetSuggestionService {
         
         SujetSuggestionDTO.BinomeDTO binomeDTO = SujetSuggestionDTO.BinomeDTO.builder()
                 .id(binome.getId())
-                .etudiant1Name(binome.getEtudiant1().getNom() + " " + binome.getEtudiant1().getPrenom())
+                .etudiant1Name(binome.getEtudiant1().getPrenom() + " " + binome.getEtudiant1().getNom())
                 .etudiant2Name(binome.getEtudiant2() != null 
-                        ? binome.getEtudiant2().getNom() + " " + binome.getEtudiant2().getPrenom() 
+                        ? binome.getEtudiant2().getPrenom() + " " + binome.getEtudiant2().getNom() 
                         : null)
-                .encadrantName(binome.getEncadrant().getNom() + " " + binome.getEncadrant().getPrenom())
+                .encadrantName(binome.getEncadrant().getPrenom() + " " + binome.getEncadrant().getNom())
                 .filiereName(filiereName)
                 .build();
         
