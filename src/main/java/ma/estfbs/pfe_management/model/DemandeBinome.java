@@ -1,10 +1,12 @@
 package ma.estfbs.pfe_management.model;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "DemandeBinome")
+@Table(name = "demande_binome")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,13 +29,20 @@ public class DemandeBinome {
     @Column(nullable = false)
     private Statut statut = Statut.EN_ATTENTE;
     
-    // Enum for the status
+    @Column(name = "date_demande", nullable = false)
+    private LocalDateTime dateDemande = LocalDateTime.now();
+    
+    @ManyToOne
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
+    
+    // Enum for the status - updated to match new schema
     public enum Statut {
         EN_ATTENTE, ACCEPTER, REFUSER;
         
         @Override
         public String toString() {
-            return name().toLowerCase();
+            return name();
         }
     }
 }

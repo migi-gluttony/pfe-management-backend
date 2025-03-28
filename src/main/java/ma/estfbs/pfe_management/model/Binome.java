@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "Binome")
+@Table(name = "binome")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -33,7 +33,11 @@ public class Binome {
     @JoinColumn(name = "sujet_id", nullable = false)
     private Sujet sujet;
     
-    // Relationships
+    @ManyToOne
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
+    
+    // Existing relationships
     @OneToMany(mappedBy = "binome")
     private List<Rapport> rapports;
     

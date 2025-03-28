@@ -2,6 +2,7 @@ package ma.estfbs.pfe_management.service;
 
 import java.security.SecureRandom;
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,10 +11,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import ma.estfbs.pfe_management.dto.CompteManagementDTOs.BatchImportRequest;
+import ma.estfbs.pfe_management.dto.CompteManagementDTOs.BatchImportResponse;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteAddRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteDTO;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteEditRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteManagementResponse;
+import ma.estfbs.pfe_management.dto.CompteManagementDTOs.ImportItemResult;
 import ma.estfbs.pfe_management.dto.FiliereDTO;
 import ma.estfbs.pfe_management.model.Etudiant;
 import ma.estfbs.pfe_management.model.Filiere;
@@ -307,4 +311,83 @@ public class CompteManagementService {
                 .nom(filiere.getNom())
                 .build();
     }
+
+    /**
+ * Import multiple accounts in batch
+ */
+@Transactional
+public BatchImportResponse importComptes(BatchImportRequest request) {
+    List<ImportItemResult> results = new ArrayList<>();
+    int successCount = 0;
+    int failedCount = 0;
+    
+    // Process each account request in the batch
+    for (CompteAddRequest compteRequest : request.getComptes()) {
+        try {
+            // Validate request
+            validateCompteRequest(compteRequest);
+            
+            // Generate email and password
+            String email = generateEmail(compteRequest.getPrenom(), compteRequest.getNom());
+            String password = generateRandomPassword(10);
+            
+            // Create user entity
+            Utilisateur utilisateur = Utilisateur.builder()
+                    .nom(compteRequest.getNom())
+                    .prenom(compteRequest.getPrenom())
+                    .email(email)
+                    .cni(compteRequest.getRole() != Role.ETUDIANT ? compteRequest.getCni() : null)
+                    .cne(compteRequest.getRole() == Role.ETUDIANT ? compteRequest.getCne() : null)
+                    .dateNaissance(compteRequest.getDateNaissance())
+                    .motDePasse(passwordEncoder.encode(password))
+                    .role(compteRequest.getRole())
+                    .build();
+            
+            utilisateur = utilisateurRepository.save(utilisateur);
+            
+            // If the role is ETUDIANT, create an Etudiant entity
+            if (compteRequest.getRole() == Role.ETUDIANT) {
+                Filiere filiere = filiereRepository.findById(compteRequest.getFiliereId())
+                        .orElseThrow(() -> new RuntimeException("Filière non trouvée avec l'id: " + compteRequest.getFiliereId()));
+                
+                Etudiant etudiant = Etudiant.builder()
+                        .utilisateur(utilisateur)
+                        .filiere(filiere)
+                        .build();
+                
+                etudiantRepository.save(etudiant);
+            }
+            
+            // Log generated credentials (in production, would send via email)
+            System.out.println("Generated email for [" + compteRequest.getPrenom() + " " + compteRequest.getNom() + "]: " + email);
+            System.out.println("Generated password: " + password);
+            
+            // Add success result
+            results.add(ImportItemResult.builder()
+                    .success(true)
+                    .message("Compte créé avec succès. Email: " + email)
+                    .data(compteRequest)
+                    .build());
+            
+            successCount++;
+        } catch (Exception e) {
+            // Add failure result
+            results.add(ImportItemResult.builder()
+                    .success(false)
+                    .message("Erreur: " + e.getMessage())
+                    .data(compteRequest)
+                    .build());
+            
+            failedCount++;
+        }
+    }
+    
+    // Build and return response
+    return BatchImportResponse.builder()
+            .results(results)
+            .totalCount(request.getComptes().size())
+            .successCount(successCount)
+            .failedCount(failedCount)
+            .build();
+}
 }

@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "NoteFinale")
+@Table(name = "note_finale")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,22 +19,28 @@ public class NoteFinale {
     @JoinColumn(name = "etudiant_id", nullable = false)
     private Utilisateur etudiant;
     
+    @ManyToOne
+    @JoinColumn(name = "binome_id", nullable = false)
+    private Binome binome;
+    
     @Column(name = "note_rapport", nullable = false)
     private Integer noteRapport;
     
     @Column(name = "note_soutenance", nullable = false)
     private Integer noteSoutenance;
     
-    // Note: The SQL has foreign key references to the 'note' columns in Rapport and NoteSoutenance
-    // but in JPA this is better modeled with entity references rather than just the note values
-    
-    /*
-    @ManyToOne
-    @JoinColumn(name = "rapport_id", nullable = false)
-    private Rapport rapport;
+    @Column(name = "note_encadrant", nullable = false)
+    private Integer noteEncadrant;
     
     @ManyToOne
-    @JoinColumn(name = "note_soutenance_id", nullable = false)
-    private NoteSoutenance noteSoutenanceObj;
-    */
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
+    
+    // For backward compatibility
+    public NoteFinale(Utilisateur etudiant, Integer noteRapport, Integer noteSoutenance) {
+        this.etudiant = etudiant;
+        this.noteRapport = noteRapport;
+        this.noteSoutenance = noteSoutenance;
+        this.noteEncadrant = 0; // Default value
+    }
 }

@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "Pourcentage")
+@Table(name = "pourcentage")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,4 +23,8 @@ public class Pourcentage {
     
     @Column(name = "pourcentage_encadrant", nullable = false)
     private Integer pourcentageEncadrant;
+    
+    @OneToOne
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
 }

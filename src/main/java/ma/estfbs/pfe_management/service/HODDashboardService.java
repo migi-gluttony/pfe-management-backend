@@ -59,7 +59,7 @@ public class HODDashboardService {
         // Get user counts by role, excluding CHEF_DE_DEPARTEMENT accounts
         List<Utilisateur> allUsers = utilisateurRepository.findAll();
         List<Utilisateur> managedUsers = allUsers.stream()
-            .filter(u -> u.getRole() != Role.CHEF_DE_DEPARTEMENT && u.getRole() != Role.ADMIN)
+            .filter(u -> u.getRole() != Role.CHEF_DE_DEPARTEMENT)
             .collect(Collectors.toList());
         
         int totalStudents = (int) managedUsers.stream().filter(u -> u.getRole() == Role.ETUDIANT).count();

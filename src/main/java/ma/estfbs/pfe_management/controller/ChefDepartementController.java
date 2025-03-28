@@ -11,10 +11,13 @@ import ma.estfbs.pfe_management.dto.BinomeManagementDTOs.BinomeAddRequest;
 import ma.estfbs.pfe_management.dto.BinomeManagementDTOs.BinomeDTO;
 import ma.estfbs.pfe_management.dto.BinomeManagementDTOs.BinomeEditRequest;
 import ma.estfbs.pfe_management.dto.BinomeManagementDTOs.BinomeManagementResponse;
+import ma.estfbs.pfe_management.dto.CompteManagementDTOs.BatchImportRequest;
+import ma.estfbs.pfe_management.dto.CompteManagementDTOs.BatchImportResponse;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteAddRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteDTO;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteEditRequest;
 import ma.estfbs.pfe_management.dto.CompteManagementDTOs.CompteManagementResponse;
+
 import ma.estfbs.pfe_management.dto.FiliereDTO;
 import ma.estfbs.pfe_management.dto.HODDashboardDTOs.ActivityDTO;
 import ma.estfbs.pfe_management.dto.HODDashboardDTOs.DashboardStatsDTO;
@@ -312,4 +315,13 @@ public class ChefDepartementController {
     public ResponseEntity<List<ActivityDTO>> getRecentActivities() {
         return ResponseEntity.ok(hodDashboardService.getRecentActivities());
     }
+
+
+    /**
+ * Import multiple accounts in batch
+ */
+@PostMapping("/comptes/import")
+public ResponseEntity<BatchImportResponse> importComptes(@RequestBody BatchImportRequest request) {
+    return ResponseEntity.ok(compteManagementService.importComptes(request));
+}
 }

@@ -1,10 +1,12 @@
 package ma.estfbs.pfe_management.model;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "Rapport")
+@Table(name = "rapport")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -30,4 +32,11 @@ public class Rapport {
     
     @Column
     private String commentaire;
+    
+    @Column(name = "date_soumission", nullable = false)
+    private LocalDateTime dateSoumission = LocalDateTime.now();
+    
+    @ManyToOne
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
 }

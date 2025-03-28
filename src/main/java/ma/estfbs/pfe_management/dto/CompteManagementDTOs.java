@@ -27,8 +27,6 @@ public class CompteManagementDTOs {
         private String filiereName; // Only for students
     }
     
-
-
     @Data
     @Builder
     @AllArgsConstructor
@@ -63,5 +61,36 @@ public class CompteManagementDTOs {
     public static class CompteManagementResponse {
         private List<CompteDTO> comptes;
         private List<FiliereDTO> filieres;
+    }
+    
+    // New DTOs for batch import functionality
+    
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class BatchImportRequest {
+        private List<CompteAddRequest> comptes;
+    }
+    
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ImportItemResult {
+        private boolean success;
+        private String message;
+        private CompteAddRequest data;
+    }
+    
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class BatchImportResponse {
+        private List<ImportItemResult> results;
+        private int totalCount;
+        private int successCount;
+        private int failedCount;
     }
 }

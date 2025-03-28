@@ -43,7 +43,7 @@ public class Utilisateur implements UserDetails {
 
     // Enum for role type
     public enum Role {
-        ADMIN, CHEF_DE_DEPARTEMENT, ETUDIANT, ENCADRANT, JURY
+        CHEF_DE_DEPARTEMENT, ETUDIANT, ENCADRANT, JURY
     }
 
     @Override

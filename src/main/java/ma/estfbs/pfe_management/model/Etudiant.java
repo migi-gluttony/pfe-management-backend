@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "Etudiant")
+@Table(name = "etudiant")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,13 +23,8 @@ public class Etudiant {
     @JoinColumn(name = "filiere_id", nullable = false)
     private Filiere filiere;
     
-    // Inverse relationships can be added as needed
-    // For example, to get the binomes that this student is a part of:
-    /*
-    @OneToMany(mappedBy = "etudiant1")
-    private List<Binome> binomesAsPrimary;
-    
-    @OneToMany(mappedBy = "etudiant2")
-    private List<Binome> binomesAsSecondary;
-    */
+    // Add the AnneeScolaire relationship but keep the old ID scheme
+    @ManyToOne
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
 }

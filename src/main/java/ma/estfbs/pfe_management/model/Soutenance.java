@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "Soutenance")
+@Table(name = "soutenance")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -39,4 +39,8 @@ public class Soutenance {
     @ManyToOne
     @JoinColumn(name = "jury2_id", nullable = false)
     private Utilisateur jury2;
+    
+    @ManyToOne
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
 }
