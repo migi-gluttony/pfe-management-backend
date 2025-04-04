@@ -32,6 +32,8 @@ public class SecurityConfiguration {
                 .requestMatchers("/api/auth/reset-password-request").permitAll()
                 .requestMatchers("/api/auth/reset-password-confirm").permitAll()
                 
+                // MODIFICATION: Permettre access avec simple authentification pour déboguer
+                .requestMatchers("/api/etudiant/**").authenticated()  // Au lieu de .hasAuthority("ETUDIANT")
                 
                 // Require authentication for all Spring Data REST endpoints
                 .requestMatchers("/api/binome/**").authenticated()
@@ -48,7 +50,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/api/proposer-sujets/**").authenticated()
                 
                 // Chef de Département role-specific endpoints
-                .requestMatchers("/api/chef_de_departement/**").hasRole("CHEF_DE_DEPARTEMENT")
+                .requestMatchers("/api/chef_de_departement/**").hasAuthority("CHEF_DE_DEPARTEMENT")
                 
                 // Any other request requires authentication
                 .anyRequest().authenticated()
@@ -58,8 +60,5 @@ public class SecurityConfiguration {
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
             
         return http.build();
-        
     }
-    
-    
 }

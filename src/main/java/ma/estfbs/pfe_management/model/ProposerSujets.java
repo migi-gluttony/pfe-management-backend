@@ -4,20 +4,22 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "ProposerSujets")
+@Table(name = "proposer_sujets")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class ProposerSujets {
+    
+    public enum Status { // Renommé de Statut à Status pour correspondre aux services existants
+        EN_ATTENTE,
+        ACCEPTER,
+        REFUSER
+    }
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @ManyToOne
-    @JoinColumn(name = "binome_proposer_par_id", nullable = false)
-    private Binome binomeProposerPar;
     
     @Column(nullable = false)
     private String titre;
@@ -28,17 +30,28 @@ public class ProposerSujets {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
     
+    @ManyToOne
+    @JoinColumn(name = "filiere_id", nullable = false)
+    private Filiere filiere;
+    
+    @ManyToOne
+    @JoinColumn(name = "etudiant_id", nullable = false)
+    private Utilisateur etudiant;
+    
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.EN_ATTENTE;
+    private Status status; // Renommé de statut à status
     
-    // Enum for the status
-    public enum Status {
-        EN_ATTENTE, ACCEPTER, REFUSER;
-        
-        @Override
-        public String toString() {
-            return name().toLowerCase();
-        }
+    @ManyToOne
+    @JoinColumn(name = "binome_id")
+    private Binome binomeProposerPar;
+    
+    // Getters et setters pour binomeProposerPar
+    public Binome getBinomeProposerPar() {
+        return binomeProposerPar;
+    }
+
+    public void setBinomeProposerPar(Binome binomeProposerPar) {
+        this.binomeProposerPar = binomeProposerPar;
     }
 }

@@ -1,17 +1,16 @@
 package ma.estfbs.pfe_management.repository;
 
+import ma.estfbs.pfe_management.model.Filiere;
+import ma.estfbs.pfe_management.model.ProposerSujets;
+import ma.estfbs.pfe_management.model.Utilisateur;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
 import java.util.List;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.rest.core.annotation.RepositoryRestResource;
-import ma.estfbs.pfe_management.model.Binome;
-import ma.estfbs.pfe_management.model.ProposerSujets;
-import ma.estfbs.pfe_management.model.ProposerSujets.Status;
-
-@RepositoryRestResource(path = "proposer-sujets")
+@Repository
 public interface ProposerSujetsRepository extends JpaRepository<ProposerSujets, Long> {
-    List<ProposerSujets> findByBinomeProposerPar(Binome binome);
-    List<ProposerSujets> findByStatus(Status status);
-    List<ProposerSujets> findByTitreContainingIgnoreCase(String titre);
-    List<ProposerSujets> findByThemeContainingIgnoreCase(String theme);
+    List<ProposerSujets> findByEtudiant(Utilisateur etudiant);
+    List<ProposerSujets> findByFiliere(Filiere filiere);
+    List<ProposerSujets> findByStatus(ProposerSujets.Status status); // Modifié: findByStatut -> findByStatus, Statut -> Status
 }
